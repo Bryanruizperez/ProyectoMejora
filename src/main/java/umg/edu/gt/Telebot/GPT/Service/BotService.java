@@ -1,6 +1,9 @@
 package umg.edu.gt.Telebot.GPT.Service;
 
-import jakarta.websocket.ClientEndpoint;
+
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import umg.edu.gt.Telebot.GPT.Model.Client;
@@ -16,29 +19,29 @@ public class BotService {
     private final String BOT_TOKEN = "7822338733:AAH3RJF87rr4QmkqRvjpIlUiZYhHS8zBTaQ"; // Reemplaza con tu token
     private final String TELEGRAM_API_URL = "https://api.telegram.org/bot" + BOT_TOKEN + "/sendMessage";
 
-    // Mapa para almacenar el estado de si se está preguntando el nombre al usuario
+    private final ClientRepository clientRepository;
+
+    public BotService(ClientRepository clientRepository) {
+        this.clientRepository = clientRepository;
+    }
+
     private Map<Long, Boolean> askingName = new HashMap<>();
-    // Mapa para almacenar el nombre del usuario por chatId
     private Map<Long, String> userNames = new HashMap<>();
 
-    // metodo para enviar un mensaje a Telegram
     public void sendTelegramMessage(Long chatId, String message) {
         RestTemplate restTemplate = new RestTemplate();
         String url = TELEGRAM_API_URL + "?chat_id=" + chatId + "&text=" + message;
         restTemplate.getForObject(url, String.class);
     }
 
-    // metodo para establecer el nombre del usuario
     public void setUserName(Long chatId, String name) {
         userNames.put(chatId, name);
     }
 
-    // metodo para obtener el nombre del usuario
-    public String getUserName(Long chatId) {
+    public String getUserName(Long chatId, String s) {
         return userNames.getOrDefault(chatId, "Aún no me has dicho tu nombre.");
     }
 
-    // metodos para gestionar si el bot está preguntando el nombre del usuario
     public void setAskingName(Long chatId, boolean asking) {
         askingName.put(chatId, asking);
     }
@@ -47,43 +50,50 @@ public class BotService {
         return askingName.getOrDefault(chatId, false);
     }
 
+    @Cacheable(value = "clients", key = "#chatId")
+    public Client getClientById(Long chatId) throws SQLException {
+        return clientRepository.getById(chatId);
+    }
+    @CacheEvict(value = "clients", key = "#chatId")
+    public void setClient(Long chatId, Client client) {
+        try {
+            clientRepository.add(client.getName(), chatId);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    @CachePut(value = "clients", key = "#client.clientId")
+    public Client addClient(Client client) throws SQLException {
+        clientRepository.add(client.getName(), client.getClientId());
+        return client;
+    }
+
     public void handleUpdate(Map<String, Object> update) throws SQLException {
         if (update.containsKey("message")) {
             Map<String, Object> message = (Map<String, Object>) update.get("message");
             Map<String, Object> chat = (Map<String, Object>) message.get("chat");
-            long chatId = ((Number) chat.get("id")).longValue();  // Asegúrate de usar long para chatId
+            long chatId = ((Number) chat.get("id")).longValue();
             String text = (String) message.get("text");
 
-            // Primero intentamos buscar si el chatId ya existe en la base de datos
-            Client client = ClientRepository.getById(chatId);
+            Client client = getClientById(chatId);
 
             if (client != null) {
-                // Si se encuentra el cliente, enviamos el mensaje con su nombre
                 sendTelegramMessage(chatId, "¡Hola " + client.getName() + ", en qué te puedo ayudar hoy?");
             } else {
-                // Si no se encuentra el chatId, seguimos el proceso para preguntar y guardar el nombre
                 if (text.equalsIgnoreCase("/start")) {
                     sendTelegramMessage(chatId, "¡Bienvenido! ¿Cómo te llamas?");
-                    setAskingName(chatId, true);  // Indicamos que estamos preguntando por el nombre
+                    setAskingName(chatId, true);
                 } else if (isAskingName(chatId)) {
-                    // Guardamos el nombre proporcionado y lo insertamos en la base de datos
                     setUserName(chatId, text);
-                    ClientRepository.add(text, chatId);
+                    Client newClient = new Client(chatId, text);
+                    addClient(newClient);
 
-                    // Luego de insertar, buscamos nuevamente para confirmar que fue guardado
-                    Client newClient = ClientRepository.getById(chatId);
-
-                    // Enviamos el mensaje de confirmación con el nombre recién guardado
-                    if (newClient != null) {
-                        sendTelegramMessage(chatId, "¡Hola " + newClient.getName() + ", en qué te puedo ayudar hoy?");
-                    } else {
-                        sendTelegramMessage(chatId, "¡Gracias! Tu nombre ha sido guardado.");
-                    }
-
-                    setAskingName(chatId, false);  // Terminamos de preguntar el nombre
+                    sendTelegramMessage(chatId, "¡Hola " + newClient.getName() + ", en qué te puedo ayudar hoy?");
+                    setAskingName(chatId, false);
                 } else {
-                    // Si no estamos preguntando el nombre, enviamos la respuesta por defecto
-                    String response = getUserName(chatId);
+                    String response = getUserName(chatId, "!Hola" + client.getName() + "!");
                     sendTelegramMessage(chatId, response);
                 }
             }
@@ -91,5 +101,4 @@ public class BotService {
             System.out.println("La actualización no contiene un mensaje válido.");
         }
     }
-
 }

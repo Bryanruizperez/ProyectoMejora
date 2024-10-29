@@ -4,7 +4,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import umg.edu.gt.Telebot.GPT.Model.Client;
 import umg.edu.gt.Telebot.GPT.Service.BotService;
+
+import java.sql.SQLException;
 import java.util.Map;
 
 @RestController
@@ -15,7 +18,7 @@ public class BotController {
 
     // Endpoint para recibir actualizaciones de Telegram
     @PostMapping("/telegram")
-    public void handleTelegramUpdate(@RequestBody Map<String, Object> update) {
+    public void handleTelegramUpdate(@RequestBody Map<String, Object> update) throws SQLException {
         // Imprimir el contenido completo de la actualización para asegurarte de que está llegando algo
         System.out.println("Actualización recibida de Telegram: " + update);
 
@@ -34,12 +37,13 @@ public class BotController {
                 botService.sendTelegramMessage(chatId, "¡Bienvenido! ¿Cómo te llamas?");
                 botService.setAskingName(chatId, true);  // Pregunta el nombre
             } else if (botService.isAskingName(chatId)) {
-                botService.setUserName(chatId, text);  // Guardar el nombre del usuario
+                Client client = new Client(chatId, text);
+                botService.setClient(chatId, client);  // Guardar el nombre del usuario
                 botService.sendTelegramMessage(chatId, "¡Gracias! Tu nombre ha sido guardado.");
                 botService.setAskingName(chatId, false);  // Ha respondido con el nombre
             } else {
-                String response = botService.getUserName(chatId);
-                botService.sendTelegramMessage(chatId, response);
+                Client client = botService.getClientById(chatId);
+                botService.sendTelegramMessage(chatId, "!Hola" + client.getName() + "!");
             }
         } else {
             System.out.println("La actualización no contiene un mensaje válido.");

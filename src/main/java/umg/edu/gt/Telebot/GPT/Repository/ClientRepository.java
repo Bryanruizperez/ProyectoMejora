@@ -28,7 +28,7 @@ public class ClientRepository {
 
 
     // metodo para agregar un nuevo cliente
-    public static void add(@NotNull @Size(min=1,max = 100) String name,@NotNull Long chat_id) throws SQLException {
+    public void add(@NotNull @Size(min=1,max = 100) String name,@NotNull Long chat_id) throws SQLException {
         if(name == null || name.trim().isEmpty() || chat_id == null ){
             throw new IllegalArgumentException("invalid input");
         }
@@ -41,7 +41,7 @@ public class ClientRepository {
         }
     }
     // metodo para obtener un cliente por ID
-    public static Client getById(Long chat_id) throws SQLException {
+    public Client getById(Long chat_id) throws SQLException {
         String sql = "SELECT * FROM " + TABLENAME + " WHERE chat_id = ?";
         try (Connection connection = dataSource.getConnection();
              PreparedStatement stmt = connection.prepareStatement(sql)){
@@ -49,9 +49,9 @@ public class ClientRepository {
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) {
-                Client client = new Client(rs.getInt("client"), rs.getString("name"));
+                Client client = new Client(rs.getLong("chat_id"), rs.getString("name"));
                 log.info("client retrieved succesfully: {}",client);
-                return new Client(rs.getInt("client"), rs.getString("name"));
+                return client;
             }
         }
         log.warn("client not found with  Chat ID = {}",chat_id);

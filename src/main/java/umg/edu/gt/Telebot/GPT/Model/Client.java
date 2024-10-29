@@ -1,20 +1,22 @@
 package umg.edu.gt.Telebot.GPT.Model;
 
+import java.io.Serializable;
+
 // Clase interna que representa la entidad Client
-public class Client {
-    private int clientId;
+public class Client implements Serializable {
+    private Long clientId;
     private String name;
 
-    public Client(int clientId, String name) {
+    public Client(Long clientId, String name) {
         this.clientId = clientId;
         this.name = name;
     }
 
-    public int getClientId() {
+    public Long getClientId() {
         return clientId;
     }
 
-    public void setClientId(int clientId) {
+    public void setClientId(Long clientId) {
         this.clientId = clientId;
     }
 
