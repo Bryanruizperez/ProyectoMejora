@@ -37,13 +37,13 @@ public class BotController {
                 botService.sendTelegramMessage(chatId, "¡Bienvenido! ¿Cómo te llamas?");
                 botService.setAskingName(chatId, true);  // Pregunta el nombre
             } else if (botService.isAskingName(chatId)) {
-                Client client = new Client(chatId, text);
-                botService.setClient(chatId, client);  // Guardar el nombre del usuario
+                botService.setUserName(chatId, text);  // Guardar el nombre del usuario
                 botService.sendTelegramMessage(chatId, "¡Gracias! Tu nombre ha sido guardado.");
                 botService.setAskingName(chatId, false);  // Ha respondido con el nombre
             } else {
+                String response = botService.getUserName(chatId);
                 Client client = botService.getClientById(chatId);
-                botService.sendTelegramMessage(chatId, "!Hola" + client.getName() + "!");
+                botService.sendTelegramMessage(chatId, response);
             }
         } else {
             System.out.println("La actualización no contiene un mensaje válido.");

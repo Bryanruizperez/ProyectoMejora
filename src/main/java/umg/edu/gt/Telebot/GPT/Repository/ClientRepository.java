@@ -28,10 +28,7 @@ public class ClientRepository {
 
 
     // metodo para agregar un nuevo cliente
-    public void add(@NotNull @Size(min=1,max = 100) String name,@NotNull Long chat_id) throws SQLException {
-        if(name == null || name.trim().isEmpty() || chat_id == null ){
-            throw new IllegalArgumentException("invalid input");
-        }
+    public static void add(String name, Long chat_id) throws SQLException {
         String sql = "INSERT INTO " + TABLENAME + " (name, chat_id) VALUES (?, ?)";
         try (Connection connection = dataSource.getConnection();
              PreparedStatement stmt = connection.prepareStatement(sql)) {
@@ -49,9 +46,7 @@ public class ClientRepository {
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) {
-                Client client = new Client(rs.getLong("chat_id"), rs.getString("name"));
-                log.info("client retrieved succesfully: {}",client);
-                return client;
+                return new Client(rs.getInt("client"), rs.getString("name"));
             }
         }
         log.warn("client not found with  Chat ID = {}",chat_id);

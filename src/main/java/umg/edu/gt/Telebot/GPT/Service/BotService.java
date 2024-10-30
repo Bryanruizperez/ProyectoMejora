@@ -1,6 +1,7 @@
 package umg.edu.gt.Telebot.GPT.Service;
 
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
@@ -20,9 +21,13 @@ public class BotService {
     private final String TELEGRAM_API_URL = "https://api.telegram.org/bot" + BOT_TOKEN + "/sendMessage";
 
     private final ClientRepository clientRepository;
+    private final SendNotification sendNotification;
 
-    public BotService(ClientRepository clientRepository) {
+    @Autowired
+    public BotService(ClientRepository clientRepository, SendNotification sendNotification) {
         this.clientRepository = clientRepository;
+        this.sendNotification = sendNotification;
+        sendNotification.notifyCacheInitialization();
     }
 
     private Map<Long, Boolean> askingName = new HashMap<>();
@@ -38,7 +43,7 @@ public class BotService {
         userNames.put(chatId, name);
     }
 
-    public String getUserName(Long chatId, String s) {
+    public String getUserName(Long chatId) {
         return userNames.getOrDefault(chatId, "Aún no me has dicho tu nombre.");
     }
 
@@ -52,21 +57,24 @@ public class BotService {
 
     @Cacheable(value = "clients", key = "#chatId")
     public Client getClientById(Long chatId) throws SQLException {
+        System.out.println("Consultando a la base de datos para chatId: " + chatId);
         return clientRepository.getById(chatId);
     }
+
     @CacheEvict(value = "clients", key = "#chatId")
     public void setClient(Long chatId, Client client) {
         try {
             clientRepository.add(client.getName(), chatId);
+            sendNotification.notifyCacheEviction(chatId);
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
-
     @CachePut(value = "clients", key = "#client.clientId")
     public Client addClient(Client client) throws SQLException {
         clientRepository.add(client.getName(), client.getClientId());
+        sendNotification.notifyClientCached(client);
         return client;
     }
 
@@ -80,6 +88,7 @@ public class BotService {
             Client client = getClientById(chatId);
 
             if (client != null) {
+                sendNotification.notifyCacheHit(chatId);
                 sendTelegramMessage(chatId, "¡Hola " + client.getName() + ", en qué te puedo ayudar hoy?");
             } else {
                 if (text.equalsIgnoreCase("/start")) {
@@ -87,14 +96,16 @@ public class BotService {
                     setAskingName(chatId, true);
                 } else if (isAskingName(chatId)) {
                     setUserName(chatId, text);
-                    Client newClient = new Client(chatId, text);
-                    addClient(newClient);
+                    clientRepository.add(text, chatId);
 
+                    Client newClient = clientRepository.getById(chatId);
                     sendTelegramMessage(chatId, "¡Hola " + newClient.getName() + ", en qué te puedo ayudar hoy?");
                     setAskingName(chatId, false);
+                    System.out.println("nombre guardado: " + newClient.getName());
                 } else {
-                    String response = getUserName(chatId, "!Hola" + client.getName() + "!");
+                    String response = getUserName(chatId);
                     sendTelegramMessage(chatId, response);
+                    System.out.println("Respuesta enviada: " + response);
                 }
             }
         } else {

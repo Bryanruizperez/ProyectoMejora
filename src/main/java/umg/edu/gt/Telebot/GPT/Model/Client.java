@@ -4,19 +4,19 @@ import java.io.Serializable;
 
 // Clase interna que representa la entidad Client
 public class Client implements Serializable {
-    private Long clientId;
+    private int clientId;
     private String name;
 
-    public Client(Long clientId, String name) {
+    public Client(int clientId, String name) {
         this.clientId = clientId;
         this.name = name;
     }
 
-    public Long getClientId() {
+    public long getClientId() {
         return clientId;
     }
 
-    public void setClientId(Long clientId) {
+    public void setClientId(int clientId) {
         this.clientId = clientId;
     }
 

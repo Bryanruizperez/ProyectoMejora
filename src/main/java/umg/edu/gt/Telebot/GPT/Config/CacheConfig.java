@@ -1,7 +1,6 @@
 package umg.edu.gt.Telebot.GPT.Config;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
-import jakarta.annotation.PostConstruct;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
